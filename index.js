@@ -1,26 +1,40 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const axios = require('axios');
 const qrcode = require('qrcode-terminal');
+const express = require('express');
 
-// Initialize client with saved session
+// WhatsApp client setup with local auth
 const client = new Client({
-  authStrategy: new LocalAuth()
+  authStrategy: new LocalAuth(),
+  puppeteer: {
+    headless: true,
+    args: ['--no-sandbox']
+  }
 });
 
+// QR code on terminal
 client.on('qr', qr => {
   console.log('📲 Scan this QR code to login:');
   qrcode.generate(qr, { small: true });
 });
 
-client.on('ready', () => {
-  console.log('✅ WhatsApp bot is ready!');
-  checkAmulStock(); // Initial check
-  setInterval(checkAmulStock, 300000); // Every 5 minutes
-});
+// WhatsApp numbers to notify (add your full numbers with country code)
+const toNumbers = [
+  '918377884512@c.us',
+  '919711720145@c.us',
+  '918287154627@c.us'
+];
 
-// Replace with your WhatsApp number (this sends TO your own WhatsApp)
-const toNumbers = ['918377884512@c.us', '919711720145@c.us', '918287154627@c.us'];
+// Function to send message to all numbers
+function sendWhatsAppToAll(numbers, message) {
+  numbers.forEach(number => {
+    client.sendMessage(number, message)
+      .then(() => console.log(`✅ Sent to ${number}`))
+      .catch(err => console.error(`❌ Error sending to ${number}:`, err));
+  });
+}
 
+// Check Amul stock site for available products
 async function checkAmulStock() {
   try {
     const res = await axios.get("https://shop.amul.com/en/browse/protein", {
@@ -44,10 +58,7 @@ async function checkAmulStock() {
         const link = linkMatch ? `https://shop.amul.com${linkMatch[1]}` : "N/A";
 
         const msg = `🟢 *THE PRODUCT IS IN STOCK!*\n*${name}*\nPrice: ₹${price}\nLink: ${link}`;
-
-        for (const number of toNumbers) {
-          client.sendMessage(number, msg);
-        }
+        sendWhatsAppToAll(toNumbers, msg);
       }
     }
   } catch (e) {
@@ -55,4 +66,24 @@ async function checkAmulStock() {
   }
 }
 
+// When WhatsApp client is ready
+client.on('ready', () => {
+  console.log('✅ WhatsApp bot is ready!');
+  checkAmulStock(); // Initial check
+  setInterval(checkAmulStock, 300000); // Every 5 minutes
+});
+
+// Start WhatsApp bot
 client.initialize();
+
+// Dummy Express server to keep Render happy
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.get('/', (_, res) => {
+  res.send('✅ Amul WhatsApp bot is running on Render');
+});
+
+app.listen(PORT, () => {
+  console.log(`🌐 Web server running on port ${PORT}`);
+});
