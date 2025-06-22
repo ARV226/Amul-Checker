@@ -1,7 +1,0 @@
-services:
-  - type: web
-    name: amul-stock-bot
-    runtime: python
-    buildCommand: ""
-    startCommand: python main.py
-    plan: free
