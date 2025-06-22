@@ -13,7 +13,7 @@ const client = new Client({
   }
 });
 
-// QR code for login
+// Display QR for login
 client.on('qr', qr => {
   console.log('📲 Scan this QR code to login:');
   qrcode.generate(qr, { small: true });
@@ -54,7 +54,7 @@ const products = [
   }
 ];
 
-// Send to all WhatsApp numbers
+// Send message to all target numbers
 function sendWhatsAppToAll(numbers, message) {
   numbers.forEach(number => {
     client.sendMessage(number, message)
@@ -74,13 +74,15 @@ async function checkAllProductsStock() {
       });
 
       const $ = cheerio.load(res.data);
-      const soldOut = $('.alert.alert-danger.mt-3').text().trim();
 
-      if (!soldOut.includes('Sold Out') && !soldOut.includes('OUT OF STOCK')) {
+      // ✅ Accurate check: structured schema
+      const isOutOfStock = $('link[itemprop="availability"]').attr('href')?.includes('OutOfStock');
+
+      if (!isOutOfStock) {
         available.push(`✅ *${product.name}*\n${product.url}`);
         console.log(`🟢 ${product.name} is IN STOCK!`);
       } else {
-        console.log(`❌ ${product.name} is still sold out.`);
+        console.log(`❌ ${product.name} is still SOLD OUT.`);
       }
     } catch (err) {
       console.error(`❌ Error checking ${product.name}:`, err.message);
@@ -95,18 +97,18 @@ async function checkAllProductsStock() {
   }
 }
 
-// Bot readiness
+// When WhatsApp bot is ready
 client.on('ready', () => {
   console.log('✅ WhatsApp bot is ready!');
   sendWhatsAppToAll(toNumbers, '✅ The Amul stock bot is now LIVE on Render!');
-  checkAllProductsStock(); // Initial
+  checkAllProductsStock(); // Initial check
   setInterval(checkAllProductsStock, 300000); // Every 5 minutes
 });
 
-// Start WhatsApp bot
+// Initialize the bot
 client.initialize();
 
-// Express server for Render
+// Dummy Express server to keep Render alive
 const app = express();
 const PORT = process.env.PORT || 3000;
 app.get('/', (_, res) => res.send('✅ Amul WhatsApp bot is running on Render'));
