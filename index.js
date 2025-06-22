@@ -18,7 +18,7 @@ client.on('qr', qr => {
   qrcode.generate(qr, { small: true });
 });
 
-// WhatsApp numbers to notify (add your full numbers with country code)
+// WhatsApp numbers to notify
 const toNumbers = [
   '918377884512@c.us',
   '919711720145@c.us',
@@ -69,6 +69,12 @@ async function checkAmulStock() {
 // When WhatsApp client is ready
 client.on('ready', () => {
   console.log('✅ WhatsApp bot is ready!');
+
+  // 🔔 Send live notification
+  const liveMessage = '✅ The Amul stock bot is now LIVE on Render!';
+  sendWhatsAppToAll(toNumbers, liveMessage);
+
+  // Start stock checker
   checkAmulStock(); // Initial check
   setInterval(checkAmulStock, 300000); // Every 5 minutes
 });
