@@ -1,8 +1,9 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const express = require('express');
+const puppeteer = require('puppeteer');
 
-// WhatsApp client setup with Puppeteer
+// WhatsApp client setup
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
@@ -18,7 +19,7 @@ const toNumbers = [
   '918287154627@c.us'
 ];
 
-// Products to monitor
+// Product list
 const products = [
   {
     name: "Amul Whey Protein Gift Pack (10 sachets)",
@@ -46,7 +47,7 @@ const products = [
   }
 ];
 
-// Send WhatsApp message to all numbers
+// Send WhatsApp message
 function sendWhatsAppToAll(numbers, message) {
   numbers.forEach(number => {
     client.sendMessage(number, message)
@@ -55,10 +56,14 @@ function sendWhatsAppToAll(numbers, message) {
   });
 }
 
-// Function to check stock using Puppeteer browser
+// Real stock checker using Puppeteer
 async function checkAllProductsStock() {
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox']
+  });
+
   const available = [];
-  const browser = client.pupBrowser; // Reuse same browser instance
 
   for (const product of products) {
     try {
@@ -66,8 +71,8 @@ async function checkAllProductsStock() {
       await page.goto(product.url, { waitUntil: 'networkidle2', timeout: 0 });
 
       const isSoldOut = await page.evaluate(() => {
-        const soldOutDiv = document.querySelector('.alert.alert-danger.mt-3');
-        return soldOutDiv && soldOutDiv.textContent.toLowerCase().includes('sold out');
+        const el = document.querySelector('.alert.alert-danger.mt-3');
+        return el && el.innerText.toLowerCase().includes('sold out');
       });
 
       if (!isSoldOut) {
@@ -79,11 +84,13 @@ async function checkAllProductsStock() {
 
       await page.close();
     } catch (err) {
-      console.error(`❌ Error checking ${product.name}: ${err.message}`);
+      console.error(`⚠️ Error checking ${product.name}:`, err.message);
     }
   }
 
-  // Send a message only if something is in stock
+  await browser.close();
+
+  // Notify if any item is in stock
   if (available.length > 0) {
     const msg = `🟢 *THE FOLLOWING PRODUCTS ARE NOW IN STOCK!*\n\n${available.join('\n\n')}`;
     sendWhatsAppToAll(toNumbers, msg);
@@ -101,13 +108,14 @@ client.on('ready', () => {
   console.log('✅ WhatsApp bot is ready!');
   sendWhatsAppToAll(toNumbers, '✅ The Amul stock bot is now LIVE on Render!');
 
-  checkAllProductsStock(); // First check
-  setInterval(checkAllProductsStock, 300000); // Repeat every 5 mins
+  checkAllProductsStock(); // Initial check
+  setInterval(checkAllProductsStock, 300000); // Check every 5 mins
 });
 
+// Start WhatsApp bot
 client.initialize();
 
-// Keep Render alive
+// Dummy Express server for Render
 const app = express();
 const PORT = process.env.PORT || 3000;
 app.get('/', (_, res) => res.send('✅ Amul WhatsApp bot is running on Render'));
